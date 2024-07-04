@@ -2,14 +2,13 @@ public class Pedido {
     private String codigo;
     private String sabor;
     private int tempoPreparo;
-    private int instante; 
-    Pedido proximoComMesmoTempoPreparo = null;
+    private int instante;
 
     public Pedido(String codigo, String sabor, int tempoPreparo, int instante) {
         this.codigo = codigo;
         this.sabor = sabor;
         this.tempoPreparo = tempoPreparo;
-        this.instante = instante; 
+        this.instante = instante;
     }
 
     public String getCodigo() {
@@ -20,36 +19,28 @@ public class Pedido {
         this.codigo = codigo;
     }
 
-    public void setSabor(String sabor) {
-        this.sabor = sabor;
-    }
-
-    public void setTempoPreparo(int tempoPreparo) {
-        this.tempoPreparo = tempoPreparo;
-    }
-
-    public void setInstante(int instante) {
-        this.instante = instante;
-    }
-
-    public void setProximoComMesmoTempoPreparo(Pedido proximoComMesmoTempoPreparo) {
-        this.proximoComMesmoTempoPreparo = proximoComMesmoTempoPreparo;
-    }
-
     public String getSabor() {
         return sabor;
+    }
+
+    public void setSabor(String sabor) {
+        this.sabor = sabor;
     }
 
     public int getTempoPreparo() {
         return tempoPreparo;
     }
 
-    public int getInstante() {
-        return instante; 
+    public void setTempoPreparo(int tempoPreparo) {
+        this.tempoPreparo = tempoPreparo;
     }
 
-    public Pedido getProximoComMesmoTempoPreparo() {
-        return proximoComMesmoTempoPreparo;
+    public int getInstante() {
+        return instante;
+    }
+
+    public void setInstante(int instante) {
+        this.instante = instante;
     }
 
     @Override

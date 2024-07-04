@@ -11,24 +11,26 @@ public class Pizzaria {
     ABP abp = new ABP();
     int tempoAtual = 0;
     Pedido emProducao = null;
-    ListaPedidos pedidosProcessados = new ListaPedidos();
-    ListaPedidos prontos = new ListaPedidos();
     private Pedido pedidoMaisDemorado = null;
     private int totalPedidosProcessados = 0;
     private int tempoTotalExecutado = 0;
     private int tempoPreparoMaisDemorado = 0;
+    private int tempoRestantePreparo = 0;
+    private ListaPedidos pedidosMaisDemorados = new ListaPedidos();
+    private int contagemPedidosMaisDemorados = 0;
+    private final String caminhoArquivoCSV = "resultado_pedidos.csv";
 
     public void lerPedidosCSV() {
         try (BufferedReader br = new BufferedReader(new FileReader("pedidos_pizza_15.csv"))) {
-            br.readLine(); 
+            br.readLine();
             String linha;
             while ((linha = br.readLine()) != null) {
                 String[] valores = linha.split(",");
                 String codigo = valores[0];
                 String sabor = valores[1];
-                int instante = Integer.parseInt(valores[2]);
-                int tempoPreparo = Integer.parseInt(valores[3]);
-                Pedido pedido = new Pedido(codigo, sabor, instante, tempoPreparo); 
+                int tempoPreparo = Integer.parseInt(valores[2]);
+                int instante = Integer.parseInt(valores[3]);
+                Pedido pedido = new Pedido(codigo, sabor, instante, tempoPreparo);
                 pedidos.adicionar(pedido);
             }
         } catch (IOException e) {
@@ -37,111 +39,117 @@ public class Pizzaria {
     }
 
     public void processarPedido() {
-        if (!fila.estaVazia() && fila.cabeca.pedido.getInstante() <= tempoAtual) {
-            Pedido pedido = fila.remover();
-            abp.inserir(pedido);
-            try {
-                Thread.sleep(pedido.getTempoPreparo() * 1000);
-                tempoTotalExecutado += pedido.getTempoPreparo();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-    
-            totalPedidosProcessados++;
-    
-            if (pedidoMaisDemorado == null || pedido.getTempoPreparo() > tempoPreparoMaisDemorado) {
-                pedidoMaisDemorado = pedido;
-                tempoPreparoMaisDemorado = pedido.getTempoPreparo();
-                pedidoMaisDemorado.setProximoComMesmoTempoPreparo(null);
-            } else if (pedido.getTempoPreparo() == tempoPreparoMaisDemorado) {
-                Pedido atual = pedidoMaisDemorado;
-                while (atual.getProximoComMesmoTempoPreparo() != null) {
-                    atual = atual.getProximoComMesmoTempoPreparo();
+        while (!pedidos.estaVazia() && pedidos.verPrimeiro().getInstante() <= tempoAtual) {
+            fila.adicionar(pedidos.removerPrimeiro());
+        }
+        if (emProducao == null && !fila.estaVazia()) {
+            emProducao = fila.remover();
+            tempoRestantePreparo = emProducao.getTempoPreparo();
+        }
+        if (emProducao != null) {
+            tempoTotalExecutado++;
+            tempoRestantePreparo--;
+            if (tempoRestantePreparo == 0) {
+                totalPedidosProcessados++;
+                if (pedidoMaisDemorado == null || emProducao.getTempoPreparo() > tempoPreparoMaisDemorado) {
+                    tempoPreparoMaisDemorado = emProducao.getTempoPreparo();
+                    pedidoMaisDemorado = emProducao;
+                    pedidosMaisDemorados = new ListaPedidos();
+                    pedidosMaisDemorados.adicionar(emProducao);
+                    contagemPedidosMaisDemorados = 1;
+                } else if (emProducao.getTempoPreparo() == tempoPreparoMaisDemorado) {
+                    pedidosMaisDemorados.adicionar(emProducao);
+                    contagemPedidosMaisDemorados++;
                 }
-                atual.setProximoComMesmoTempoPreparo(pedido);
+                abp.inserir(emProducao);
+                emProducao = null;
+
+                if (!fila.estaVazia()) {
+                    emProducao = fila.remover();
+                    tempoRestantePreparo = emProducao.getTempoPreparo();
+                }
             }
         }
     }
 
-    public void simular(int unidadesTempo) {
+    public void simular() {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        String entrada = "";
+        String entrada;
         System.out.println("Pressione <ENTER> para avançar 1 ciclo ou digite 'C' para continuação automática.");
         try {
-            while (!entrada.equalsIgnoreCase("C")) {
+            while (true) {
                 entrada = reader.readLine();
                 if (entrada.isEmpty()) {
                     tempoAtual++;
                     processarPedido();
+                    exibirResultadosFinais();
+                    if (pedidos.estaVazia() && fila.estaVazia() && emProducao == null) {
+                        break;
+                    }
                 } else if (entrada.equalsIgnoreCase("C")) {
                     while (true) {
                         tempoAtual++;
                         processarPedido();
-                        Thread.sleep(1000); 
+                        if (pedidos.estaVazia() && fila.estaVazia() && emProducao == null) {
+                            exibirResultadosFinais();
+                            break;
+                        }
                     }
+                    break;
                 }
             }
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            exibirResultadosFinais(); 
-        }
-    }
-
-    private void exibirResultadosFinais() {
-        System.out.println("Total de pedidos processados: " + totalPedidosProcessados);
-        System.out.println("Total de tempo executado: " + tempoTotalExecutado + " segundos");
-        System.out.println("Pedidos mais demorados:");
-        Pedido atual = pedidoMaisDemorado;
-        while (atual != null) {
-            System.out.println(atual);
-            atual = atual.getProximoComMesmoTempoPreparo();
-        }
-    }
-
-    public void exportarSituacaoFilaCSV(String caminhoArquivo) {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(caminhoArquivo))) {
-            bw.write("instante de tempo t,fila de pedidos,em produção,prontos\n");
-            while (!fila.estaVazia() || emProducao != null || !pedidos.estaVazia()) {
-                while (!pedidos.estaVazia() && pedidos.verPrimeiro().getInstante() <= tempoAtual) {
-                    fila.adicionar(pedidos.removerPrimeiro());
-                }
-
-                if (emProducao != null && emProducao.getTempoPreparo() + emProducao.getInstante() == tempoAtual) {
-                    prontos.adicionar(emProducao);
-                    emProducao = null;
-                }
-
-                if (emProducao == null && !fila.estaVazia()) {
-                    emProducao = fila.removerPrimeiro();
-                }
-
-                bw.write(tempoAtual + "," + fila.toString() + "," + (emProducao != null ? emProducao.toString() : "") + "," + prontos.toString() + "\n");
-                tempoAtual++;
-            }
+            exportarABPCSV(caminhoArquivoCSV);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    private void exibirResultadosFinais() {
+        int pedidosEmProducao = emProducao != null ? 1 : 0;
+        System.out.println("Instante atual: " + tempoAtual);
+        System.out.println("Pedidos em produção: " + pedidosEmProducao);
+        System.out.println("Pedidos na fila: " + fila.tamanho());
+        System.out.println("Total de pedidos processados: " + totalPedidosProcessados);
+        System.out.println("Total de instantes executados: " + tempoTotalExecutado);
+        if (pedidoMaisDemorado != null) {
+            System.out.println("Tempo de preparo mais demorado: " + tempoPreparoMaisDemorado);
+            System.out.println("Quantidade de pedidos com o tempo de preparo mais demorado: " + contagemPedidosMaisDemorados);
+            System.out.println("Pedidos com o tempo de preparo mais demorado:");
+            StringBuilder pedidosStr = new StringBuilder();
+            for (int i = 0; i < pedidosMaisDemorados.tamanho(); i++) {
+                pedidosStr.append(pedidosMaisDemorados.get(i).toString()).append("\n");
+            }
+            System.out.print(pedidosStr.toString());
+        } else {
+            System.out.println("Nenhum pedido foi processado.");
+        }
+    }
+
     public void exportarABPCSV(String caminhoArquivo) {
         StringBuilder sb = new StringBuilder();
-    exportarABPInOrder(abp.raiz, sb);
-    if (sb.length() > 0) { 
-        sb.setLength(sb.length() - 1);
-    }
-    try (BufferedWriter bw = new BufferedWriter(new FileWriter(caminhoArquivo))) {
-        bw.write(sb.toString());
-    } catch (IOException e) {
-        e.printStackTrace();
-    }
+        exportarABPInOrder(abp.raiz, sb);
+        if (sb.length() > 0) {
+            sb.setLength(sb.length() - 1);
+        }
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(caminhoArquivo))) {
+            bw.write(sb.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void exportarABPInOrder(NodoABP nodoABP, StringBuilder sb) {
         if (nodoABP != null) {
             exportarABPInOrder(nodoABP.getEsquerda(), sb);
-            sb.append(nodoABP.getPedido().toString());
+            sb.append(nodoABP.getPedido().getCodigo()).append(",");
             exportarABPInOrder(nodoABP.getDireita(), sb);
+        }
+    }
+
+    public void exportarSituacaoFilaCSV(String caminhoArquivo) {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(caminhoArquivo))) {
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

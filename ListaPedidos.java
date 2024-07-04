@@ -13,6 +13,16 @@ public class ListaPedidos {
         }
     }
 
+    public int tamanho() {
+        int contador = 0;
+        NodoLista atual = cabeca;
+        while (atual != null) {
+            contador++;
+            atual = atual.proximo;
+        }
+        return contador;
+    }
+
     public Pedido remover() {
         if (cabeca == null) return null;
         Pedido pedido = cabeca.pedido;
@@ -45,5 +55,16 @@ public class ListaPedidos {
             atual = atual.proximo;
         }
         return sb.toString();
+    }
+
+    public Pedido get(int index) {
+        if (index < 0 || index >= tamanho()) {
+            throw new IndexOutOfBoundsException("Índice fora dos limites: " + index);
+        }
+        NodoLista atual = cabeca;
+        for (int i = 0; i < index; i++) {
+            atual = atual.proximo;
+        }
+        return atual.pedido;
     }
 }
