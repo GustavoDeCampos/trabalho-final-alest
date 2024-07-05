@@ -148,8 +148,24 @@ public class Pizzaria {
 
     public void exportarSituacaoFilaCSV(String caminhoArquivo) {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(caminhoArquivo))) {
+            bw.write("Codigo,Sabor,TempoPreparo,Instante\n");
+            for (int i = 0; i < fila.tamanho(); i++) {
+                Pedido pedido = fila.get(i);
+                bw.write(pedido.getCodigo() + "," + pedido.getSabor() + "," + pedido.getInstante() + "," + pedido.getTempoPreparo() + "\n");
+            }
+            bw.write("\nPedidos processados:\n");
+            exportarABPInOrderCSV(abp.raiz, bw);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void exportarABPInOrderCSV(NodoABP nodoABP, BufferedWriter bw) throws IOException{
+        if(nodoABP != null){
+            exportarABPInOrderCSV(nodoABP.getEsquerda(), bw);
+            Pedido pedido = nodoABP.getPedido();
+            bw.write(pedido.getCodigo() + "," + pedido.getSabor() + "," + pedido.getTempoPreparo() + "," + pedido.getInstante() + "\n");
+            exportarABPInOrderCSV(nodoABP.getDireita(), bw);
         }
     }
 }
